@@ -2,10 +2,7 @@
 
 namespace Nordsec\StatusChecker\Services;
 
-use Doctrine\DBAL\Connection as DoctrineConnection;
 use Exception;
-use Illuminate\Database\Connection as IlluminateConnection;
-use PDO;
 
 class DatabaseChecker implements StatusCheckerInterface
 {
@@ -15,15 +12,19 @@ class DatabaseChecker implements StatusCheckerInterface
     protected const DEFAULT_USER = 'root';
     protected const DEFAULT_PASSWORD = '';
 
-    public function __construct(
-        private string $name,
-        private array $configuration = [],
-        private IlluminateConnection|DoctrineConnection|null $connection = null,
-        private bool $critical = true,
-    ) {
+    private $name;
+    private $configuration;
+    private $connection;
+    private $critical = true;
+
+    public function __construct($name, $configuration = [], $connection = null)
+    {
+        $this->name = $name;
+        $this->configuration = $configuration;
+        $this->connection = $connection;
     }
 
-    public function setCritical(bool $critical): static
+    public function setCritical(bool $critical): StatusCheckerInterface
     {
         $this->critical = $critical;
 
@@ -56,19 +57,19 @@ class DatabaseChecker implements StatusCheckerInterface
         return static::STATUS_OK;
     }
 
-    protected function createConnection(string $dsn, $user = null, $password = null, array $options = []): PDO
+    protected function createConnection(string $dsn, $user = null, $password = null, array $options = []): \PDO
     {
-        return new PDO($dsn, $user, $password, $options);
+        return new \PDO($dsn, $user, $password, $options);
     }
 
     private function executeSelect(string $query): void
     {
         switch (true) {
-            case $this->connection instanceof IlluminateConnection:
+            case $this->connection instanceof \Illuminate\Database\Connection:
                 $this->connection->select($query);
                 break;
 
-            case $this->connection instanceof DoctrineConnection:
+            case $this->connection instanceof \Doctrine\DBAL\Connection:
                 $this->connection
                     ->prepare($query)
                     ->executeQuery()
@@ -82,7 +83,7 @@ class DatabaseChecker implements StatusCheckerInterface
                 $user = $this->resolveUser($config);
                 $pass = $this->resolvePassword($config);
 
-                $pdo = $this->createConnection($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                $pdo = $this->createConnection($dsn, $user, $pass, [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
 
                 $statement = $pdo->prepare($query);
                 $statement->execute();
